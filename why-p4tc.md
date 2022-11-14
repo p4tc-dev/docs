@@ -33,7 +33,7 @@ kernel/software table the keyword *skip_hw* is used. When neither *skip_sw* or *
 is specified the kernel attempts to install the entry both in s/w and h/w (it may fail
 on the hardware side if there are no more resources available to accommodate the table entry).
 
-![TC Flower Offload](../images/why-p4tc/tc-flower-offload.png)
+![TC Flower Offload](./images/why-p4tc/tc-flower-offload.png)
 
 Note: A wide variety of other kernel based offload approaches exist including
 switchdev[refxx], etc. XXX: More text later.
