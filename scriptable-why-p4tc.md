@@ -1,33 +1,30 @@
 # What Is P4TC You Ask?
 
-The original version of P4TC was scriptable and is described [here](scriptable-why-p4tc.md).
-The main difference with the current version is migration of the software
-datapath from a scriptable tc u32-like approach to eBPF. For analysis of our
-migration to eBPF, see:
-https://github.com/p4tc-dev/docs/blob/main/p4-conference-2023/2023P4WorkshopP4TC.pdf
+A **<u>Scriptable</u>** *Software and Hardware offload of P4 MAT(Match Action Tables) and their Control* using the kernel TC infrastructure.
 
-P4TC is a net-namespace aware P4 implementation over TC. A P4 program and
-its associated objects and state are attached to a kernel _netns_ structure.
-IOW, if we had two programs across netns' or within a netns they have no
-visibility to each others objects (unlike for example TC actions whose kinds are
-"global" in nature or eBPF maps visavis visibility on bpftool).
-
-P4TC builds on top of many years of Linux TC experiences of a netlink control
-path interface coupled with a software datapath with an equivalent offloadable
-hardware datapath.
-
-Any hardware offload in the TC world requires a functionally equivalent software
-implementation as illustrated below.
+Both user space *Control* and Kernel *Datapath* are **scripted** (<u>not compiled</u>).
 
 <img align="left" width="200" height="300" src="./images/why-p4tc/software-twin.png">
 
-A packet X input would expect the same transformation with an output result of Y
-whether that packet arrives in the kernel datapath or hardware offloaded datapath.
+This means (once the P4TC iproute2 and kernel part are upstreamed) there is no
+kernel or user space dependency for any P4 program that describes a new datapath.
+i.e. introducing a new datapath is a matter of creating shell scripts for the
+relevant P4 program with no kernel or userspace code change. While these shell
+scripts can be manually created, it is simpler to use the *P4C*([P4C][], [P4C2][])
+compiler to generate them (See Workflow section for details).
 
-The P4TC software datapath uses eBPF accessing P4 objects that require control
-interface residing in the P4TC domain. In the tradition of TC offloads, both the
-hardware and software use the same control path interfaces, semantics and
-tooling.
+Any hardware offload in the TC world requires a functionally equivalent software
+implementation as illustrated.
+This means A packet X input would expect the same transformation with an output
+result of Y whether that packet arrives in the kernel datapath or hardware offloaded
+datapath. Our initial goal in this project is to cater for the kernel software datapath
+and after upstreaming focus on hardware offload. The P4 kernel s/w datapath stands on its
+own merit (despite TC providing infra for both).
+
+Note: We have recently done a lot of work to integrate eBPF as a software datapath.
+The result of our work was presented to 2023 P4 Workshop in Santa Clara.
+See: https://github.com/p4tc-dev/docs/blob/main/p4-conference-2023/2023P4WorkshopP4TC.pdf
+XXX: More updates on this work to be added...
 
 ## The Challenges With Current Linux Offloads
 
@@ -38,9 +35,9 @@ Flower has become quiet popular and is supported by a wide variety of NICs and
 switches([ref2][], [ref6][], [ref7][], etc). For this reason we will stick
 to using *flower* to provide context for P4TC.
 
-The diagram below illustrates a high level overview of TC (Match-Action Table)
-MAT runtime offload for the flower classifier (all the other offloadable
-classifiers follow the same semantics).
+The diagram below illustrates a high level overview of TC MAT runtime offload
+for the flower classifier (all the other offloadable classifiers follow the same
+semantics).
 <img align="left" width="400" height="600" src="./images/why-p4tc/tc-flower-offload.png">
 The example demonstrates a user adding a table entry on the ingress of device
 *eth0* to match a packet with header fields *ethernet type ip, ip protocol SCTP
@@ -63,7 +60,7 @@ etc. For sake of brevity we wont go into any details of these mechanisms.
 
 While the open source community development approach has helped to commoditize
 offloads and provide stability, it is also a double edged sword; it comes at a
-cost of a slower upstream process and enforced rigidity of features.
+cost of a slower process and enforced rigidity of features.
 
 Often the hardware has datapath capabilities that are hard or impossible to
 expose due to desire to conform to available kernel datapath abstractions.
@@ -71,20 +68,17 @@ In particular this is contentious with newer hardware features which were
 not designed (by vendors) with the thought "how would this work with the Linux kernel?".
 Extending the kernel (to support these new features) by adding new extensions
 in the kernel takes an unreasonably long time to upstream because care needs to
-be taken to ensure backward compatibility, etc - and not to forget that as in
-any large communities the kernel community is rife with folks with strongs
-points of views which could lead to long tangent discussions (a "condition"
-often refered to as [bikeshed][]).
+be taken to ensure backward compatibility, etc.
 
-But even in cases where datapath offload frameworks exist and are mostly
-sufficient, for example the TC architecture, anytime small extensions are
-required it is non-trivial to adapt-to for the same (process) reasons.
+But even when datapath offload frameworks exist and are mostly sufficient,
+for example the TC architecture, adding small extensions is non-trivial for the
+same (process) reasons.
 As an example, when an enterprise consumer requires a simple offload match to
-extend the tc *flower* classifier with the end goal to eventually be supported
-by a distro vendor such as RH, Ubuntu, SUSE etc it could take **multiple years**
+extend the tc *flower* classifier with the end goal to eventually be supported by
+a distro vendor such as RH, Ubuntu, SUSE etc it could take **multiple years**
 for such a feature to show up in the enterprise consumer's network.
-Adding a basic header field match offload for flower (as trivial as that may
-sound), requires:
+Adding a basic header field match offload for flower (as trivial as that may sound),
+requires:
 
 1. patching the kernel flow dissector,
 
@@ -100,20 +94,17 @@ The process is a rinse-repeat workflow which requires not only for perseverance 
 also above average social and technical skills of the developers and associated management.
 
 Simply put: The current kernel offload approach and process is not only costly
-in time but also expensive in personnel requirements. In fact some folks implement
-datapaths in user space to bypass the kernel process altogether (and not for the
-most often cited reason of performance).
+in time but also expensive in personnel requirements.
 
 #### So What Are The Alternatives? And Are They Any Better?
 
-These kernel challenges have "empowered" a trend to bypass the kernel altogether and
+These kernel challenges have enabled a trend to bypass the kernel altogether and
 move to user space with solutions like DPDK. Unfortunately such bypass approaches
 are not good for the consumer since they are encumbered with vendor-specific APIs
 and object abstractions. If you pick a specific vendor, you are essentially locked
 into their API.
 OTOH, the kernel provides a _stable, well understood single API and abstraction_
-for offloaded objects regardless of the hardware vendor - which has been proven
-in deployments (with exception of the process issues being a hindrance).
+for offloaded objects regardless of the hardware vendor.
 
 Due to supply chain challenges (which were exercabeted by the COVID pandemic)
 the industry is trending to a model where consumers purchase NICs from multiple
@@ -147,8 +138,7 @@ processing semantics for that hardware using the P4 language and architecture.
 ### So Why P4 And How Does P4 Help Here?
 
 P4 is the *only* widely deployed specification that is capable of defining
-datapaths. In fact two major NIC vendors Intel [ref16][] and AMD [ref17][]
-produce "P4-native" NICs today.
+datapaths.
 
 By "datapath definition" we mean not only the ability to specify the
 match-action tables, but also the control of conditions that glue them together
@@ -230,19 +220,19 @@ P4TC provides stability by outsourcing the datapath abstraction semantics to P4
 while maintaing the well understood offload semantics provided by TC.
 
 P4TC also introduces *user and kernel independence* for additional extensions to
-the MAT architecture. This helps us not having to deal with kernel or user
-space fixed abstractions.
+the MAT architecture by using the concept of **scriptability**. This helps us
+not having to deal with kernel or user space fixed abstractions.
 
-#### How Does A P4 Runtime Differ From Classical TC?
+#### How Does A P4 Offload Differ From Classical TC?
 
 Other than reusing the *tc* utility, P4TC reuses the offload mechanisms exposed
 by TC. To compare, the diagram below illustrate on the left hand
-how one would install MAT entries using flower and on the right handside with P4TC.
+how one would offload using flower and on the right handside with P4TC.
 
 <table>
   <tr>
-    <td>TC Flower: Software and Hardware Control</td>
-    <td>P4TC: Software and Hardware Control</td>
+    <td>Offloading using TC flower</td>
+    <td>Offloading to a P4 table</td>
   </tr>
   <tr>
     <td valign="top"><img src="./images/why-p4tc/tc-flower-offload.png"></td>
@@ -256,7 +246,7 @@ Typically for offload purposes the driver will transform map a TC flower
 "rule" into a "table entry" using the rule's chain ID, priority (and combination
 of masks).
 Whereas P4TC directly deals with table entries which are roughly mapped to a
-classical H/W TCAM but could be SRAM, DRAM, etc.
+classical H/W TCAM.
 
 The second difference is that the table in P4TC belongs to the system/ASIC i.e
 it is not tied to a netdev/port but rather global and can be shared by many netdevs;
@@ -266,20 +256,17 @@ the creation of a table entry above) there is no mention of the *netdev* or even
 with the exception that a P4TC table can appear in multiple tc blocks as well as
 (in/egress) directions.
 
-Other than that you get the same look and feel programming P4TC tables as if you
-are programming flower entries. Note: This look-and-feel is intentional so that
-someone who is familiar with flower can adapt quickly to p4tc.
+Other than you get the same look and feel programming P4TC tables as if you are
+programming flower entries.
 
-#### Ok, So Then How Would A P4TC Datapath Look Like At Runtime?
+##### Ok, So Then How Would A P4TC Datapath Look Like At Runtime?
 
-P4TC implements a TC classifier to manage a P4 pipeline lifetime from instantiation
-all the way to destruction. See examples further below on how a P4 program is
-instantiated. Once instantiated, the runtime API kicks in.
+P4TC implements a TC classifier to instantiate a P4 pipeline.
 
 <table>
   <tr>
-    <td>P4 Pipeline Datapath</td>
-    <td>P4 Runtime Control</td>
+    <td>1. Instantiating a P4 Pipeline</td>
+    <td>2. Offloading to a P4 table</td>
   </tr>
   <tr>
     <td valign="top"><img src="./images/why-p4tc/p4tc-runtime-pipeline.png"></td>
@@ -287,40 +274,58 @@ instantiated. Once instantiated, the runtime API kicks in.
   </tr>
 </table>
 
-The figure on the left above illustrates how a P4TC datapath operates after instantiation.
-Everything in greenish color (the tc eBPF code, XDP eBPF code, the control json
-helper, as well as the hardware program) is compiler generated. Note that
-the placement of the different parts of the pipeline is entirely up to the
-operator. IOW, you could have software at XDP only or tc only etc or you could
-have it in all 3 locations when it makes sense. State across the different
-locations is relayed by the tuple of {data, metadata}. However, it should be
-note the 3 locations could run entirely different P4 programs.
+The figure on the left above illustrates how an *installed* (more on this later)
+program is *instantiated*: i.e one would have to *activate* the pipeline on one
+or more ports using the TC *P4* classifier.
+You can populate the tables anytime after the program is *installed* (more on
+this later) before it is *activated*; however, these tables will only be used
+once their respective pipeline is instantiated (as shown above on the left).
+
+#### Sorry, What Is *scriptability* Again?
+
+There are two aspects to scriptability: kernel and user space.
 
 ##### Kernel Independence
 
-The software datapath and control artificats are all generated by the open
-source *P4C*([P4C2][], P4C][]) compiler which supports a P4TC backend.
-Unlike flower, no new kernel code is needed for any P4 program regardless of
-the datapath behavior described or objects(headers, parsers, etc) introduced.
+Ok, there is nothing magical about ability to script datapath computations in
+the TC world in the kernel. There are many existing samples that the
+TC savy folks will recognize:
+
+ - Think about the tc *u32* classifier which, as you know, can be taught how to
+   parse and match on arbitrary packet headers with zero kernel or user space
+   changes.
+
+ - Think of the tc *pedit* action which, as you know, can be taught to edit or
+   compute operations based on arbitrary packet headers with zero kernel or user
+   space changes.
+
+ - Think a programmable *skbedit* tc action where you can Read/Write from/to
+   arbitrary packet metadata with zero kernel or user space changes.
+
+Next:
+…Think of all those designed from day 1 with intention to define arbitrary
+ datapath and associated processing as defined by P4.
+
+ ⇒  From a kernel perspective, that is what P4TC scriptability is about….
+    You write a script to describe your datapath and logical packet flow.
 
 ##### User Space Independence
 
-P4TC also offers user-space/control independence again by virtue of the
-*P4C*([P4C2][], P4C][]) compiler.
+P4TC also offers user-space/control independence with "scriptability".
 
-Note that on the righ top corner of the diagram "P4 Runtime Control" is
-some entity labelled as **myprog** *json P4 details*. The json file is
-generated by the P4 compiler to express details of the control attributes
-that **myprog** uses in the P4 program (tables, actions, etc). For the example
+Note that on the left top corner of the diagram "Offloading to a P4 table" is
+some entity labelled as **myprogram** *json P4 details*. The json file is
+generated by the P4 compiler to express details of the attributes
+that **myprogram** uses in the P4 program (tables, actions, etc). For the example
 illustrated, the json file will describe:
 
- - that there is a table called *mytable* (as derived from **myprog.p4**).
+ - that there is a table called *mytable* (as derived from **myprogram.p4**).
  - that the table has a key with name *ip/dstAddr* (which we can shorten)
    and that it is of type IPV4 address.
  - that the table supports an action called *drop* (which takes no parameters)
 
-*Introspection*([IS][])is essentially the activity involved in taking user input
-and querying the json file for details and then transforming the information from
+*Introspection*([IS][])is essentially the activity involved in taking user input and
+querying the json file for details and then transforming the information from
 the json file into a binary input to be transported to the kernel.
 
 The consequences of introspection are: we do not have to update iproute2 code
@@ -329,25 +334,22 @@ for any new headers, etc.
 ##### Ok, So How Does This Simplify Things?
 
 For the non-TC savy but P4-savy folks: P4TC intends to solve the upstream process
-bottleneck by allowing for creating a shell script which contain TC commands that
-describe the P4 behavior and an eBPF s/w datapath with zero kernel or user space
-changes. You do not need to be a kernel or eBPF guru either.
-
-For the TC savy folks, we try very hard to maintain TC point of view.
+bottleneck by allowing for creating shell scripts which contain TC commands that
+describe the P4 behavior with zero kernel or user space changes.
 
 With that being said: The P4TC solution will go beyond traditional P4 in the
 focus for network programmability - we hope that we can grow the network
 programmability paradigm by marrying Linux and P4 and that some of these
 experiences can be brought into P4 proper over time.
 
-### So I Am Intrigued - How Do I Get **myprog** *Installed* Into The Kernel?
+### So I Am Intrigued - How Do I Get **myprogram** *Installed* Into The Kernel?
 
-You can use the open source *P4C*([P4C2][], P4C][]) compiler which supports
-generating P4TC templates. The workflow is described below:
+You can use the open source *P4C*([P4C][], P4C2][]) compiler which supports
+generating P4TC templates.
 
 <table>
   <tr>
-    <td>Software And Hardware: Creating And Loading P4TC Program</td>
+    <td>Creating And Loading P4TC Program Template</td>
   </tr>
   <tr>
     <td valign="top"><img src="./images/why-p4tc/p4tc-compile-workflow-install.png"></td>
@@ -355,71 +357,22 @@ generating P4TC templates. The workflow is described below:
 </table>
 
 
-#### Workflow
-  1) A developer writes a P4 program, "myprog"
+#### Workflow for a P4 Developer
+ 1. Author writes the P4 program, *myprogram*.
+ 2. Generate the P4TC templates for *myprogram* (using *P4C*) targeting P4TC.
+ 3. Author/dev executes the tc template scripts (using their favorite shell scripting)
+    to “install P4 program, *myprogram*” into the kernel.
 
-  2A) Compiles it using the *P4C*([P4C2][], P4C][]). The compiler generates 3 outputs:
-      a) A shell script which form template definitions for the different P4
-         objects "myprog" utilizes (tables, externs, actions etc).
-      b) the parser and the rest of the datapath are generated as eBPF and need
-         to be compiled into binaries. At the moment the parser and the main
-         control block are generated as separate eBPF program but this could change in
-         the future (without affecting any kernel code).
-      c) A json introspection file used for the control plane (by iproute2/tc).
+#### Linux Ops approach
+ 1. Manually create tc template scripts for *myprogram*
+ 2. Execute the tc template scripts (using their favorite shell scripting)
+    to “install P4 program, *myprogram*” into the kernel.
 
-  2B) Compiles using a vendor backend to P4C. We are not going to discuss this
-      aspect; focus is to illustrate the s/w side.
-
-  3) At this point the artifacts from #2 could be handed to an operator.
-     Either the operator is handed the ebpf binary or compiles it.
-     The operator executes the shell script(s) to manifest the functional
-     "myprog" into the kernel.
-
-  4) The operator instantiates "myprog" pipeline via the tc P4 filter
-     to ingress/egress (depending on P4 arch) of one or more netdevs/ports
-     (illustrated below as "block 22"). Note the tc filter here is used
-     to manage the P4 program pipeline which may include pieces in h/w,
-
-Several ways to instantiate:
-
-     Example1: parser is an action:
-       "tc filter add block 22 ingress protocol all prio 10 p4 pname myprog \
-        action bpf obj $PARSER.o section p4parser/tc-ingress \
-        action bpf obj $PROGNAME.o section p4prog/tc"
-
-     Example2: parser explicitly bound and rest of dpath as an action:
-       "tc filter add block 22 ingress protocol all prio 10 p4 pname myprog \
-        prog tc obj $PARSER.o section p4parser/tc-ingress \
-        action bpf obj $PROGNAME.o section p4prog/tc"
-
-     Example3: parser is at XDP, rest of dpath as an action:
-       "tc filter add block 22 ingress protocol all prio 10 p4 pname myprog \
-        prog type xdp obj $PARSER.o section p4parser/xdp-ingress \
-        pinned_link /path/to/xdp-prog-link \
-        action bpf obj $PROGNAME.o section p4prog/tc"
-
-     Example4: parser+prog at XDP:
-       "tc filter add block 22 ingress protocol all prio 10 p4 pname myprog \
-        prog type xdp obj $PROGNAME.o section p4prog/xdp \
-        pinned_link /path/to/xdp-prog-link"
-
-     Example5: SW parser at XDP, P4 control block at TC and equivalent in HW:
-        "tc filter add block 22 ingress protocol all prio 1 p4 pname simple_l3 \
-         prog type hw filename myprog_hw.o ... \
-         prog type xdp obj $PARSER.o section parser/xdp pinned_link /sys/fs/bpf/mylink \
-         action bpf obj $PROGNAME.o section prog/tc-ingress"
-
-Note: The h/w syntax for loading is still under discussion, so this syntax may
-change.
+For complex programs it makes a lot of sense to use the compiler.
+The other advantage of the compiler is you can generate the hardware equivalent
+program that gets loaded into the hardware.
 
 ## For More Details...
-
-See netdevconf 0x17 presentation at:
-https://netdevconf.info/0x17/sessions/talk/integrating-ebpf-into-the-p4tc-datapath.html
-
-See EuroP4 paper:
-https://github.com/p4tc-dev/docs/blob/main/EuroP4-conference-2023/EuroP4_2023-paper.pdf
-https://github.com/p4tc-dev/docs/blob/main/EuroP4-conference-2023/EuroP4_2023-slides.pdf
 
 See netdevconf 0x16 discussions:
   - overview: https://netdevconf.info/0x16/session.html?Your-Network-Datapath-Will-Be-P4-Scripted
@@ -432,7 +385,7 @@ code:
 Our automated testing consists of:
 
 - CICD which includes several hundred tdc testcases; the workflow is described here:
-https://github.com/p4tc-dev/docs/blob/main/p4tc-workshop-0x16-slides/p4_tc%20netdev%20workshop%20slides.pdf
+https://github.com/p4tc-dev/docs/blob/main/p4tc-workshop-0x16-slides/p4_tc%20netdev%20workshop%20slides.pdf 
 
   CICD runs on X86 and ARM as well as emulated s390 (to test for BE) following a
   workflow described above.
@@ -443,6 +396,8 @@ https://github.com/p4tc-dev/docs/blob/main/p4tc-workshop-0x16-slides/p4_tc%20net
 
 - We are working on a datapath test tool whose artifacts will be generated by
   the *P4C* compiler.
+
+XXXX: links here..
 
 ## References
 
@@ -462,10 +417,7 @@ https://github.com/p4tc-dev/docs/blob/main/p4tc-workshop-0x16-slides/p4_tc%20net
 [ref13]: https://www.intel.ca/content/www/ca/en/products/details/network-io/ipu/e2000-asic.html "Intel Mount Evans"
 [ref14]:  https://www.marvell.com/products/data-processing-units.html "Marvel DPU"
 [ref15]:  https://www.xilinx.com/applications/data-center/network-acceleration.html  "Xilinx NICs"
-[ref16]:  https://www.intel.com/content/www/us/en/products/details/network-io/ipu/e2000-asic.html "Intel NICs"
-[ref17]:  https://www.amd.com/en/accelerators/pensando "AMD NICs"
 [P4C]:  https://github.com/p4lang/p4c  "P4C"
-[P4C2]: https://github.com/p4lang/p4c/tree/main/backends/tc  "P4C2"
+[P4C2]:  https://github.com/p4tc-dev/docs/blob/main/p4tc-workshop-0x16-slides/P4_Compiler_Backend_for_P4TC_NetDev.pdf  "P4C2"
 [IS]: https://github.com/p4tc-dev/docs/blob/main/p4tc-workshop-0x16-slides/Introspection.pdf "Introspection"
 [P42023]:  https://www.youtube.com/watch?v=bk2i1Y42wls "Google P4 2023 Workshop"
-[bikeshed]: http://phk.freebsd.dk/sagas/bikeshed/ "bike shedding"
