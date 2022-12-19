@@ -1,4 +1,4 @@
-# What is P4TC you ask? 
+# What Is P4TC You Ask?
 
 A **<u>Scriptable</u>** *Hardware offload of P4 MAT(Match Action Tables) and their Control* using the kernel TC infrastructure.
 
@@ -11,7 +11,7 @@ relevant P4 program with no kernel or userspace code change. While these shell
 scripts can be manually created, it is simpler to use the *P4C* compiler to
 generate them (See Workflow section for details).
 
-## The challenges with current Linux offloads
+## The Challenges With Current Linux Offloads
 
 The Linux kernel already supports offloads today for several TC classifiers
 including but not limited to *flower*([ref3][], [ref1][]) and *u32*([ref4][], [ref5][]).
@@ -23,9 +23,7 @@ to using *flower* to provide context for P4TC.
 The diagram below illustrates a high level overview of TC MAT runtime offload
 for the flower classifier (all the other offloadable classifiers follow the same
 semantics).
-
 <img align="left" width="400" height="600" src="./images/why-p4tc/tc-flower-offload.png">
-
 The example demonstrates a user adding a table entry on the ingress of device
 *eth0* to match a packet with header fields *ethernet type ip, ip protocol SCTP
 and destination port 80*. Upon a match the packet is *dropped*.
@@ -43,8 +41,7 @@ Note: A wide variety of other kernel-based offload approaches for various
 other subsystems exist including switchdev([switchdev][]), TLS, IPSEC, MACsec,
 etc. For sake of brevity we wont go into any details of these mechanisms.
 
-<br></br>
-### So what is wrong with current kernel offload approaches?
+### So What Is Wrong With Current Kernel Offload Approaches?
 
 While the open source community development approach has helped to commoditize
 offloads, and provide stability it is also a double edged sword; it comes at a
@@ -111,7 +108,7 @@ by programming how the hardware executes a specified datapath. From a simplistic
 PoV think of being given a hardware canvas and you can describe the packet
 processing semantics for that hardware.
 
-### So why P4 and how does P4 help here?
+### So Why P4 And How Does P4 Help Here?
 
 P4 is the *only* widely deployed specification that is capable of defining
 datapaths.
@@ -137,7 +134,7 @@ definition.
 While P4 may have shortcomings it is the only game in town and we are compelled
 enough to add support for it in the kernel.
 
-### So where does P4TC play?
+### So Where Does P4TC Play?
 
 A major objective of P4TC is to address all the challenges mentioned earlier in
 the current kernel offload approach.
@@ -206,7 +203,7 @@ one would have to *instatiate* the pipeline on one or more ports. Do note that t
 control of table entries is independent of ports but you have to instantiate the
 pipeline on one or more ports (either with the "dev" or "block" semantics.
 
-#### Sorry, what is *scriptability* again?
+#### Sorry, What Is *scriptability* Again?
 
 Ok, there is nothing magical about ability to script datapath computations in
 the TC world.
@@ -240,7 +237,7 @@ experiences can be brought into P4 proper over time.
 
 ### So I Am Intrigued - How Do I Get *myprogram* Into The Kernel?
 
-XXX: Probably put refs to more detailed description here..
+XXX: more detailed description here..
 
 ## References
 
@@ -260,4 +257,3 @@ XXX: Probably put refs to more detailed description here..
 [ref13]: https://www.intel.ca/content/www/ca/en/products/details/network-io/ipu/e2000-asic.html "Intel Mount Evans"
 [ref14]:  https://www.marvell.com/products/data-processing-units.html "Marvel DPU"
 [ref15]:  https://www.xilinx.com/applications/data-center/network-acceleration.html  "Xilinx NICs"
-
