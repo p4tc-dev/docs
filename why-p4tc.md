@@ -24,7 +24,7 @@ The diagram below illustrates a high level overview of TC MAT runtime offload
 for the flower classifier (all the other offloadable classifiers follow the same
 semantics).
 
-<img align="left" width="300" height="400" src="./images/why-p4tc/tc-flower-offload.png">
+<img align="left" width="400" height="600" src="./images/why-p4tc/tc-flower-offload.png">
 
 The example demonstrates a user adding a table entry on the ingress of device
 *eth0* to match a packet with header fields *ethernet type ip, ip protocol SCTP
@@ -43,6 +43,7 @@ Note: A wide variety of other kernel-based offload approaches for various
 other subsystems exist including switchdev([switchdev][]), TLS, IPSEC, MACsec,
 etc. For sake of brevity we wont go into any details of these mechanisms.
 
+<br></br>
 ### So what is wrong with current kernel offload approaches?
 
 While the open source community development approach has helped to commoditize
@@ -55,12 +56,12 @@ Extending the kernel (to support these new features) by adding new extensions
 takes an unreasonably long time to upstream because care needs to be taken
 to ensure backward compatibility.
 
-But even when datapath offload frameworks exist, such as the TC MAT
-architectures, adding small extensions is non-trivial for the same (proces) reasons.
+But even when datapath offload frameworks exist, such as the TC architecture,
+adding small extensions is non-trivial for the same (process) reasons.
 As an example, when an enterprise consumer requires a simple offload match to
-extend the tc *flower* classifier with the end goal to eventually be supported by a distro
-vendor such as RH, Ubuntu, SUSE etc it could take multiple years for such a
-feature to show up in the enterprise consumer's network.
+extend the tc *flower* classifier with the end goal to eventually be supported by
+a distro vendor such as RH, Ubuntu, SUSE etc it could take multiple years for such
+a feature to show up in the enterprise consumer's network.
 Adding a basic header field match offload (as trivial as that may sound),
 requires:
 
@@ -93,15 +94,22 @@ vendors. Clearly a single abstraction here is a less costly approach and the
 kernel approach stands out.
 
 Network datapath deployments tend to be very specific to the applications they
-serve. But even when serving similar applications, two different organizations may end
-up deploying different datapaths due to organizational capabilities or culture. Basically
-Conway's law applies[https://en.wikipedia.org/wiki/Conway%27s_law].
-
-IOW, there is no *one-model-fits-all* network datapath.
+serve. But even when serving similar applications, two different organizations may
+end up deploying different datapaths due to organizational capabilities or culture.
+Basically Conway's law applies[https://en.wikipedia.org/wiki/Conway%27s_law].
 Typically this desire translates into request for just this "one feature" that
 perhaps nobody else needs. These `one-offs` are abundant and the current
 upstream process does not bode well for such requirements due to the process
 requirements.
+
+Summary: there is no *one-model-fits-all* network datapath.
+
+The emergence of "programmable switches" and NICs/xPUs([ref11][], [ref12][],
+[ref13][], [ref14][], [ref15][]) has exacerbated this process challenge because
+now a consumer can finally cater to their organization network exact requirements
+by programming how the hardware executes a specified datapath. From a simplistic
+PoV think of being given a hardware canvas and you can describe the packet
+processing semantics for that hardware.
 
 ### So why P4 and how does P4 help here?
 
@@ -109,21 +117,22 @@ P4 is the *only* widely deployed specification that is capable of defining
 datapaths.
 
 By "datapath definition" we mean not only the ability to specify the
-match action tables, but also the control of how to glue them together in a pipeline
-which is traversed by a candidate packet.
-The TC architeture ([ref8][], [ref9][]) provides a mechanism for construction
-of a pipeline using TC verdict opcodes; however, it requires good knowledge
-of the underlying infrastructure and it is not only cumbersome to construct
-slightly complex pipelines but sometimes impossible to describe with TC.
+match-action tables, but also the control of conditions that glue them together
+in a pipeline traversal by a candidate packet.
+The TC architeture ([ref8][], [ref9][]) also provides a mechanism for construction
+of a pipeline using *TC verdict opcodes* (alongside chains and filter priorities);
+however, it requires good knowledge of the underlying infrastructure to create
+meaningful pipelines. In addition it gets not only cumbersome to construct
+slightly complex pipelines but sometimes impossible altogether.
 
 P4 is capable of describing a wide range of datapaths so much so that
 large NIC consumers such as Microsoft ([ref10][]) and others have opted
-to specifying their hardware datapath requirements with P4. The NIC vendors are
-then tasked with delivering hardware that matches the provided P4 program.
+to specifying their hardware datapath requirements to NIC vendors with P4.
 
 From this perspective:
 Think of a P4 program as an abstraction language for the datapath i.e
-it describes the *datapath behavior*.
+it describes the *datapath behavior*. And think of P4TC as manifesting the datapath
+definition.
 
 While P4 may have shortcomings it is the only game in town and we are compelled
 enough to add support for it in the kernel.
@@ -169,8 +178,33 @@ P4TC reuses the mechanisms exposed by TC as illustrated below.
   </tr>
 </table>
 
-There are a few subtle exceptions.
-XXXX...
+There are a few subtle exceptions. The first one is that the table in P4 belongs
+to the system/ASIC i.e it is not tied to a netdev/port. The semantics will be
+closer to *tc block* PoV. The other exception is that the table in P4 is essentially
+"global" and can be programmed independently (without specifying "dev xxx)";
+this means that when tied to multiple ports, all ports see exactly the same
+table instance.
+Other than you get the same look and feel as if you are programming flower entries.
+
+##### Ok, So Then How Would A P4TC Datapath Look Like At Runtime?
+
+P4TC implements a TC classifier to prescribe a P4 pipeline.
+
+<table>
+  <tr>
+    <td>Prescring a P4 Pipeline</td>
+    <td>Offloading to a P4 table</td>
+  </tr>
+  <tr>
+    <td valign="top"><img src="./images/why-p4tc/p4tc-runtime-pipeline.png"></td>
+    <td valign="top"><img src="./images/why-p4tc/p4tc-table-update.png"></td>
+  </tr>
+</table>
+
+As illustrated, to instantiate an installed(more on this later) program pipeline
+one would have to *instatiate* the pipeline on one or more ports. Do note that the
+control of table entries is independent of ports but you have to instantiate the
+pipeline on one or more ports (either with the "dev" or "block" semantics.
 
 #### Sorry, what is *scriptability* again?
 
@@ -204,9 +238,9 @@ focus for network programmability - we hope that we can grow the network
 programmability paradigm by marrying Linux and P4 and that some of these
 experiences can be brought into P4 proper over time.
 
-#### So how would a P4TC datapath look like at runtime?
+### So I Am Intrigued - How Do I Get *myprogram* Into The Kernel?
 
-XXX: Attach some diagrams here.
+XXX: Probably put refs to more detailed description here..
 
 ## References
 
@@ -221,3 +255,9 @@ XXX: Attach some diagrams here.
 [ref8]: https://opennetworking.org/wp-content/uploads/2020/12/Jamal_Salim.pdf "JHS, 2018 P4 Workshop"
 [ref9]: https://legacy.netdevconf.info/0.1/sessions/21.html "TC Classifier Action Subsystem"
 [ref10]: https://github.com/Azure/DASH "Azure DASH project"
+[ref11]: https://www.intel.ca/content/www/ca/en/products/network-io/programmable-ethernet-switch/tofino-series.html "Tofino Switch"
+[ref12]: https://www.nvidia.com/en-us/networking/products/data-processing-unit/ "Nvidia BlueField"
+[ref13]: https://www.intel.ca/content/www/ca/en/products/details/network-io/ipu/e2000-asic.html "Intel Mount Evans"
+[ref14]:  https://www.marvell.com/products/data-processing-units.html "Marvel DPU"
+[ref15]:  https://www.xilinx.com/applications/data-center/network-acceleration.html  "Xilinx NICs"
+
