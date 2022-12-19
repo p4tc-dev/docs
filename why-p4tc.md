@@ -24,7 +24,7 @@ The diagram below illustrates a high level overview of TC MAT runtime offload
 for the flower classifier (all the other offloadable classifiers follow the same
 semantics).
 
-<img align="left" width="400" height="400" src="./images/why-p4tc/tc-flower-offload.png">
+<img align="left" width="300" height="400" src="./images/why-p4tc/tc-flower-offload.png">
 
 The example demonstrates a user adding a table entry on the ingress of device
 *eth0* to match a packet with header fields *ethernet type ip, ip protocol SCTP
