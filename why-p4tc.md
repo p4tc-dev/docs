@@ -13,8 +13,8 @@ generate them (See Workflow section for details).
 
 ## The Challenges With Current Linux Offloads
 
-The Linux kernel already supports offloads today for several TC classifiers
-including but not limited to *flower*([ref3][], [ref1][]) and *u32*([ref4][], [ref5][]).
+The Linux kernel already supports offloads for several TC classifiers, including
+but not limited to, *flower*([ref3][], [ref1][]) and *u32*([ref4][], [ref5][]).
 
 Flower has become quiet popular and is supported by a wide variety of NICs and
 switches([ref2][], [ref6][], [ref7][], etc). For this reason we will stick
@@ -28,7 +28,7 @@ The example demonstrates a user adding a table entry on the ingress of device
 *eth0* to match a packet with header fields *ethernet type ip, ip protocol SCTP
 and destination port 80*. Upon a match the packet is *dropped*.
 Observe that the match table abstraction exists both in hardware and in the
-kernel; the user gets to select whether to install the entry in the kernel,
+kernel; the user gets to select whether to install an entry in the kernel,
 hardware or both.
 In the illustrated example, the entry skips the software table (keyword *skip_sw*)
 and is installed only in the hardware table. To install the
@@ -44,21 +44,23 @@ etc. For sake of brevity we wont go into any details of these mechanisms.
 ### So What Is Wrong With Current Kernel Offload Approaches?
 
 While the open source community development approach has helped to commoditize
-offloads, and provide stability it is also a double edged sword; it comes at a
-cost of a slower process and rigidity of features.
+offloads and provide stability, it is also a double edged sword; it comes at a
+cost of a slower process and enforced rigidity of features.
 
 Often the hardware has datapath capabilities that are hard or impossible to
 expose due to desire to conform to available kernel datapath abstractions.
+In particular this is contentious with newer hardware features which were
+designed with the thought "how would this work with the Linux kernel".
 Extending the kernel (to support these new features) by adding new extensions
 takes an unreasonably long time to upstream because care needs to be taken
-to ensure backward compatibility.
+to ensure backward compatibility, etc.
 
-But even when datapath offload frameworks exist, such as the TC architecture,
+But even when datapath offload frameworks exist and are sufficient, such as the TC architecture,
 adding small extensions is non-trivial for the same (process) reasons.
 As an example, when an enterprise consumer requires a simple offload match to
 extend the tc *flower* classifier with the end goal to eventually be supported by
-a distro vendor such as RH, Ubuntu, SUSE etc it could take multiple years for such
-a feature to show up in the enterprise consumer's network.
+a distro vendor such as RH, Ubuntu, SUSE etc it could take **multiple years**
+for such a feature to show up in the enterprise consumer's network.
 Adding a basic header field match offload (as trivial as that may sound),
 requires:
 
@@ -78,17 +80,17 @@ also above average social and technical skills of the developers and associated 
 Simply put: The current kernel offload approach and process is not only costly
 in time but also expensive in personnel requirements.
 
-These kernel challenges have enabled a trend to bypass the kernel and move to
-user space with solutions like DPDK. Unfortunately such approaches are not good for
-the consumer since they are encumbered with vendor-specific APIs and object
-abstractions.
+These kernel challenges have enabled a trend to bypass the kernel altogether and
+move to user space with solutions like DPDK. Unfortunately such bypass approaches
+are not good for the consumer since they are encumbered with vendor-specific APIs
+and object abstractions.
 OTOH, the kernel provides a _stable, well understood single API and abstraction_
 for offloaded objects regardless of the hardware vendor.
 
 Due to supply chain challenges (which were exercabeted by the COVID pandemic)
 the industry is trending to a model where consumers purchase NICs from multiple
-vendors. Clearly a single abstraction here is a less costly approach and the
-kernel approach stands out.
+vendors. Clearly a single abstraction for both control and datapath as offered
+by the kernel approach is a less costly and appealing.
 
 Network datapath deployments tend to be very specific to the applications they
 serve. But even when serving similar applications, two different organizations may
@@ -103,9 +105,9 @@ Summary: there is no *one-model-fits-all* network datapath.
 
 The emergence of "programmable switches" and NICs/xPUs([ref11][], [ref12][],
 [ref13][], [ref14][], [ref15][]) has exacerbated this process challenge because
-now a consumer can finally cater to their organization network exact requirements
+now a consumer can finally cater to their organization's network exact requirements
 by programming how the hardware executes a specified datapath. From a simplistic
-PoV think of being given a hardware canvas and you can describe the packet
+PoV think of being provided a hardware canvas and you can describe the packet
 processing semantics for that hardware.
 
 ### So Why P4 And How Does P4 Help Here?
@@ -127,9 +129,9 @@ large NIC consumers such as Microsoft ([ref10][]) and others have opted
 to specifying their hardware datapath requirements to NIC vendors with P4.
 
 From this perspective:
-Think of a P4 program as an abstraction language for the datapath i.e
+Think of a P4 program as an *abstraction language for the datapath* i.e
 it describes the *datapath behavior*. And think of P4TC as manifesting the datapath
-definition.
+definition for both hardware offloading and kernel/software.
 
 While P4 may have shortcomings it is the only game in town and we are compelled
 enough to add support for it in the kernel.
@@ -156,13 +158,14 @@ To address the long process challenge mentioned earlier:
 P4TC provides stability by outsourcing the datapath abstraction semantics to P4
 while maintaing the well understood offload semantics provided by TC.
 
-P4TC also introduces user and kernel independence for additional extensions to
-the MAT architecture by using the concept of **scriptability**.
-
+P4TC also introduces *user and kernel independence* for additional extensions to
+the MAT architecture by using the concept of **scriptability**. This helps us
+not having to deal with kernel or user space fixed abstractions.
 
 #### How Does A P4 Offload Differ From Classical TC?
 
-P4TC reuses the mechanisms exposed by TC as illustrated below.
+P4TC reuses the mechanisms exposed by TC as illustrated below. On the left hand
+is how one would offload using flower and on the right handside with P4TC.
 
 <table>
   <tr>
@@ -177,8 +180,9 @@ P4TC reuses the mechanisms exposed by TC as illustrated below.
 
 There are a few subtle exceptions. The first one is that the table in P4 belongs
 to the system/ASIC i.e it is not tied to a netdev/port. The semantics will be
-closer to *tc block* PoV. The other exception is that the table in P4 is essentially
-"global" and can be programmed independently (without specifying "dev xxx)";
+closer to *tc block* PoV with the exception that a table can appear in multiple
+tc blocks as well as directions:  the table in P4 is essentially
+"global" and can be programmed independently";
 this means that when tied to multiple ports, all ports see exactly the same
 table instance.
 Other than you get the same look and feel as if you are programming flower entries.
@@ -189,8 +193,8 @@ P4TC implements a TC classifier to prescribe a P4 pipeline.
 
 <table>
   <tr>
-    <td>Prescring a P4 Pipeline</td>
-    <td>Offloading to a P4 table</td>
+    <td>1. Prescribing a P4 Pipeline</td>
+    <td>2. Offloading to a P4 table</td>
   </tr>
   <tr>
     <td valign="top"><img src="./images/why-p4tc/p4tc-runtime-pipeline.png"></td>
@@ -199,16 +203,20 @@ P4TC implements a TC classifier to prescribe a P4 pipeline.
 </table>
 
 As illustrated, to instantiate an installed(more on this later) program pipeline
-one would have to *instatiate* the pipeline on one or more ports. Do note that the
-control of table entries is independent of ports but you have to instantiate the
-pipeline on one or more ports (either with the "dev" or "block" semantics.
+one would have to *instantiate* the pipeline on one or more ports. Do note that the
+control of table entries is independent of ports or direction (ingress vs egress)
+but you have to instantiate the pipeline on one or more ports (either with the
+"dev" or "block" semantics).
 
 #### Sorry, What Is *scriptability* Again?
 
-Ok, there is nothing magical about ability to script datapath computations in
-the TC world.
+There are two aspects to scriptability: kernel and user space.
 
-For the TC savy folks:
+##### Kernel Independence
+
+Ok, there is nothing magical about ability to script datapath computations in
+the TC world in the kernel. There are many existing samples that the
+TC savy folks will recognize:
 
  - Think about the tc *u32* classifier which, as you know, can be taught how to
    parse and match on arbitrary packet headers with zero kernel or user space
@@ -224,7 +232,29 @@ For the TC savy folks:
 Next:
 …Think of all those designed from day 1 with intention to define arbitrary
  datapath and associated processing as defined by P4.
- ⇒ That is what P4TC is about….
+ ⇒  From a kernel perspective, that is what P4TC is about….
+
+
+##### User Space Independence
+
+Note that on the left top corner of the diagram "Offloading to a P4 table" is
+something labelled as **myprogram** *json P4 details*. The json file is
+generated by the P4 compiler to express details of the attributes
+that **myprogram** uses in the P4 program (tables, actions, etc). For the example
+illustrated:
+
+ - that there is a table called *mytable* described in **myprogram.p4**
+ - that the table has a key with name *ip/dstAddr* and of type IPV4 address
+ - that the table supports an action called *drop* (which takes no parameters)
+
+*Introspection* is essentially the activity involved in taking user input and
+querying the json file for details and then transforming the information from
+the json file into a binary input to be transported to the kernel.
+
+The consequences of introspection we do not have to update iproute2 code
+for any new headers, etc.
+
+##### Ok, So How Does This Simplify Things?
 
 For the non-TC savy but P4-savy folks: P4TC intends to solve the upstream process
 bottleneck by allowing for creating shell scripts which contain TC commands that
