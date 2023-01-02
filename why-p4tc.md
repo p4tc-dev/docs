@@ -189,11 +189,11 @@ Other than you get the same look and feel as if you are programming flower entri
 
 ##### Ok, So Then How Would A P4TC Datapath Look Like At Runtime?
 
-P4TC implements a TC classifier to prescribe a P4 pipeline.
+P4TC implements a TC classifier to instatiate a P4 pipeline.
 
 <table>
   <tr>
-    <td>1. Instatiating a P4 Pipeline</td>
+    <td>1. Instantiating a P4 Pipeline</td>
     <td>2. Offloading to a P4 table</td>
   </tr>
   <tr>
@@ -202,13 +202,16 @@ P4TC implements a TC classifier to prescribe a P4 pipeline.
   </tr>
 </table>
 
-As illustrated, to instantiate an installed(more on this later) program pipeline
-one would have to *instantiate* the pipeline on one or more ports. Do note that the
-control of table entries is independent of ports or direction (ingress vs egress)
-but you have to instantiate the pipeline on one or more ports (either with the
-"dev" or "block" semantics). As a matter of fact, once the program is installed
-(but not yet instantiated) you can populate the tables - they will only be used
-once their respect pipeline is instantiated.
+The figure on the left above illustrates how an *installed* (more on this later)
+program is instantiated: i.e one would have to *instantiate* the pipeline on one
+or more ports. Do note that the control of table entries is independent of ports
+or direction (ingress vs egress) but to make use of them in the datapath
+you have to instantiate the pipeline on one or more ports (either with the "dev"
+or "block" semantics).
+You can populate the tables anytime after the program is *installed* (more on
+this later) as illustrated in the diagram on the right.
+These tables will only be used once their respect pipeline is instantiated (as
+shown above).
 
 #### Sorry, What Is *scriptability* Again?
 
