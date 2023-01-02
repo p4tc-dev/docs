@@ -193,7 +193,7 @@ P4TC implements a TC classifier to prescribe a P4 pipeline.
 
 <table>
   <tr>
-    <td>1. Prescribing a P4 Pipeline</td>
+    <td>1. Instatiating a P4 Pipeline</td>
     <td>2. Offloading to a P4 table</td>
   </tr>
   <tr>
