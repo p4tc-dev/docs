@@ -206,7 +206,9 @@ As illustrated, to instantiate an installed(more on this later) program pipeline
 one would have to *instantiate* the pipeline on one or more ports. Do note that the
 control of table entries is independent of ports or direction (ingress vs egress)
 but you have to instantiate the pipeline on one or more ports (either with the
-"dev" or "block" semantics).
+"dev" or "block" semantics). As a matter of fact, once the program is installed
+(but not yet instantiated) you can populate the tables - they will only be used
+once their respect pipeline is instantiated.
 
 #### Sorry, What Is *scriptability* Again?
 
@@ -232,8 +234,8 @@ TC savy folks will recognize:
 Next:
 …Think of all those designed from day 1 with intention to define arbitrary
  datapath and associated processing as defined by P4.
- ⇒  From a kernel perspective, that is what P4TC is about….
 
+ ⇒  From a kernel perspective, that is what P4TC is about….
 
 ##### User Space Independence
 
@@ -251,7 +253,7 @@ illustrated:
 querying the json file for details and then transforming the information from
 the json file into a binary input to be transported to the kernel.
 
-The consequences of introspection we do not have to update iproute2 code
+The consequences of introspection are: we do not have to update iproute2 code
 for any new headers, etc.
 
 ##### Ok, So How Does This Simplify Things?
@@ -265,7 +267,7 @@ focus for network programmability - we hope that we can grow the network
 programmability paradigm by marrying Linux and P4 and that some of these
 experiences can be brought into P4 proper over time.
 
-### So I Am Intrigued - How Do I Get *myprogram* Into The Kernel?
+### So I Am Intrigued - How Do I Get **myprogram** *Installed* Into The Kernel?
 
 XXX: more detailed description here..
 
