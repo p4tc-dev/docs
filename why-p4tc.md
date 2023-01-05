@@ -80,17 +80,27 @@ also above average social and technical skills of the developers and associated 
 Simply put: The current kernel offload approach and process is not only costly
 in time but also expensive in personnel requirements.
 
+#### So What Are The Alternatives? And Are They Any Better?
+
 These kernel challenges have enabled a trend to bypass the kernel altogether and
 move to user space with solutions like DPDK. Unfortunately such bypass approaches
 are not good for the consumer since they are encumbered with vendor-specific APIs
-and object abstractions.
+and object abstractions. If you pick a specific vendor, you are essentially locked
+into their API.
 OTOH, the kernel provides a _stable, well understood single API and abstraction_
 for offloaded objects regardless of the hardware vendor.
 
 Due to supply chain challenges (which were exercabeted by the COVID pandemic)
 the industry is trending to a model where consumers purchase NICs from multiple
-vendors. Clearly a single abstraction for both control and datapath as offered
-by the kernel approach is a less costly and appealing.
+vendors. Imagine the operational complexity of building out infrastructure with
+different vendor NICs each with their own interfaces and tooling in comparison
+to vendor-agnostic, well understood tooling in the open source world.
+
+Summary:  Clearly a single abstraction for both control and datapath as offered
+by the kernel approach is a less costly and appealing from an operational/deployment
+perspective.
+
+#### There Is No *one-model-fits-all* Network Datapath
 
 Network datapath deployments tend to be very specific to the applications they
 serve. But even when serving similar applications, two different organizations may
@@ -100,8 +110,6 @@ Typically this desire translates into request for just this "one feature" that
 perhaps nobody else needs. These `one-offs` are abundant and the current
 upstream process does not bode well for such requirements due to the process
 requirements.
-
-Summary: there is no *one-model-fits-all* network datapath.
 
 The emergence of "programmable switches" and NICs/xPUs([ref11][], [ref12][],
 [ref13][], [ref14][], [ref15][]) has exacerbated this process challenge because
