@@ -94,7 +94,7 @@ Due to supply chain challenges (which were exercabeted by the COVID pandemic)
 the industry is trending to a model where consumers purchase NICs from multiple
 vendors. Imagine the operational complexity of building out infrastructure with
 different vendor NICs each with their own interfaces and tooling in comparison
-to vendor-agnostic, well understood tooling in the open source world.
+to vendor-agnostic, well understood tooling in the kernel world.
 
 Summary:  Clearly a single abstraction for both control and datapath as offered
 by the kernel approach is a less costly and appealing from an operational/deployment
