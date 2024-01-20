@@ -356,7 +356,7 @@ generating P4TC templates. The workflow is described below:
 
 
 #### Workflow
-  1) A developer writes a P4 program, "myprog"
+  1 ) A developer writes a P4 program, "myprog"
 
   2A) Compiles it using the *P4C*([P4C2][], P4C][]). The compiler generates 3 outputs:
       a) A shell script which form template definitions for the different P4
@@ -370,12 +370,12 @@ generating P4TC templates. The workflow is described below:
   2B) Compiles using a vendor backend to P4C. We are not going to discuss this
       aspect; focus is to illustrate the s/w side.
 
-  3) At this point the artifacts from #2 could be handed to an operator.
+  3 ) At this point the artifacts from #2 could be handed to an operator.
      Either the operator is handed the ebpf binary or compiles it.
      The operator executes the shell script(s) to manifest the functional
      "myprog" into the kernel.
 
-  4) The operator instantiates "myprog" pipeline via the tc P4 filter
+  4 ) The operator instantiates "myprog" pipeline via the tc P4 filter
      to ingress/egress (depending on P4 arch) of one or more netdevs/ports
      (illustrated below as "block 22"). Note the tc filter here is used
      to manage the P4 program pipeline which may include pieces in h/w,
