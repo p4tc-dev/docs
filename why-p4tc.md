@@ -24,6 +24,12 @@ implementation as illustrated below.
 A packet X input would expect the same transformation with an output result of Y
 whether that packet arrives in the kernel datapath or hardware offloaded datapath.
 
+Although the TC equivalence model provides more features (eg ability to split
+processing between s/w and h/w), one perspective of the equivalence model is
+to view the software datapath as a digital twin of the hardware datapath. One
+could implement the datapath entirely in s/w and then when ready using the
+same mechanism, with zero changes to the code offload onto hardware.
+
 The P4TC software datapath uses eBPF accessing P4 objects that require control
 interface residing in the P4TC domain. In the tradition of TC offloads, both the
 hardware and software use the same control path interfaces, semantics and
