@@ -216,7 +216,7 @@ many years and we are finally living up to the rhetoric with P4TC:
 
    Marian Pritsak and Matty Kadosh, "P4 Compiler Backend for TC", https://legacy.netdevconf.info/0x13/session.html?p4-compiler-backend-for-tc
 
- - Netdev 0x14 (Prague, 2019)
+ - Netdev 0x14 (Virtual)
 
    Nick McKeown's keynote: https://netdevconf.info//0x14/session.html?keynote-mckeown
 
