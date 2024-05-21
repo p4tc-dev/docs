@@ -356,7 +356,7 @@ experiences can be brought into P4 proper over time.
 
 ### So I Am Intrigued - How Do I Get **myprog** *Installed* Into The Kernel?
 
-You can use the open source *P4C*([P4C2][], P4C][]) compiler which supports
+You can use the open source *P4C*([P4C2][], [P4C][]) compiler which supports
 generating P4TC templates. The workflow is described below:
 
 <table>
@@ -372,7 +372,7 @@ generating P4TC templates. The workflow is described below:
 #### Workflow
   1 ) A developer writes a P4 program, "myprog"
 
-  2A) Compiles it using the *P4C*([P4C2][], P4C][]). The compiler generates 3 outputs:
+  2A) Compiles it using the *P4C*([P4C2][], [P4C][]). The compiler generates 3 outputs:
       a) A shell script which form template definitions for the different P4
          objects "myprog" utilizes (tables, externs, actions etc).
       b) the parser and the rest of the datapath are generated as eBPF and need
