@@ -382,7 +382,8 @@ generating P4TC templates. The workflow is described below:
       c) A json introspection file used for the control plane (by iproute2/tc).
 
   2B) Compiles using a vendor backend to P4C. We are not going to discuss this
-      aspect; focus is to illustrate the s/w side.
+      aspect; focus is to illustrate the s/w side. But do note you could load the
+      HW datapath using devlink (FIXME: diagram still showing old scheme usinng tc filter).
 
   3 ) At this point the artifacts from #2 could be handed to an operator.
      Either the operator is handed the ebpf binary or compiles it.
@@ -392,39 +393,77 @@ generating P4TC templates. The workflow is described below:
   4 ) The operator instantiates "myprog" pipeline via the tc P4 filter
      to ingress/egress (depending on P4 arch) of one or more netdevs/ports
      (illustrated below as "block 22"). Note the tc filter here is used
-     to manage the P4 program pipeline which may include pieces in h/w,
+     to manage the P4 program pipeline (whether we have h/w offload or not).
 
-Several ways to instantiate:
+Several ways to instantiate the s/w datapath:
 
      Example1: parser is an action:
        "tc filter add block 22 ingress protocol all prio 10 p4 pname myprog \
-        action bpf obj $PARSER.o section p4parser/tc-ingress \
-        action bpf obj $PROGNAME.o section p4prog/tc"
+        action bpf obj $PARSER.o section p4tc/parse \
+        action bpf obj $PROGNAME.o section p4tc/main"
 
-     Example2: parser explicitly bound and rest of dpath as an action:
-       "tc filter add block 22 ingress protocol all prio 10 p4 pname myprog \
-        prog tc obj $PARSER.o section p4parser/tc-ingress \
-        action bpf obj $PROGNAME.o section p4prog/tc"
+     Example2: parser is at XDP, rest of dpath as an action:
+       "ip link set $DEV xdp obj $PARSER.o sec p4tc/parse
+        tc filter add block 22 ingress protocol all prio 10 p4 pname myprog \
+        action bpf obj $PROGNAME.o section p4prog/main"
 
-     Example3: parser is at XDP, rest of dpath as an action:
-       "tc filter add block 22 ingress protocol all prio 10 p4 pname myprog \
-        prog type xdp obj $PARSER.o section p4parser/xdp-ingress \
-        pinned_link /path/to/xdp-prog-link \
-        action bpf obj $PROGNAME.o section p4prog/tc"
+Note: if you dont need s/w datapath at all there is no need to load the ebpf code.
 
-     Example4: parser+prog at XDP:
-       "tc filter add block 22 ingress protocol all prio 10 p4 pname myprog \
-        prog type xdp obj $PROGNAME.o section p4prog/xdp \
-        pinned_link /path/to/xdp-prog-link"
+     Example3: HW only datapath.
 
-     Example5: SW parser at XDP, P4 control block at TC and equivalent in HW:
-        "tc filter add block 22 ingress protocol all prio 1 p4 pname simple_l3 \
-         prog type hw filename myprog_hw.o ... \
-         prog type xdp obj $PARSER.o section parser/xdp pinned_link /sys/fs/bpf/mylink \
-         action bpf obj $PROGNAME.o section prog/tc-ingress"
+       "tc filter add block 22 ingress protocol all prio 10 p4 pname myprog"
 
-Note: The h/w syntax for loading is still under discussion, so this syntax may
-change.
+#### Deployment Model
+
+The diagram below illustrates the different models of deployment of an I/DPU(XPU) for hardware offload.
+There are two ways the P4 datapath can be deployed. We refer to these as *XPU mode* and *smartNIC mode* (depending on the vendor they may refer to it as "functional NIC").
+
+In both cases the relevant driver acts as the interface for the P4 programming i.e the tc infra sends the CRUD requests to the driver which then talks to the hardware. Do note: the illustrated CPUs, whether on the host side(x86 for example) or the NIC side (ARM cores) have a running distro such as debian etc; IOW, the illustrated drivers in the diagram are Linux drivers.
+
+<img  src="./images/Port-Rep-xpu.png">
+
+The control of whether you want to run *smartNIC mode* or *XPU mode* is mostly via firmware, although vendors would sell you a "lower end" version which runs entirely on *smartNIC mode* - example you can buy an NVIDIA CX6 NIC for a lower price than buying a Bluefield2, Intel has some similar mode as well.
+
+The 2 modes are mutually exclusive i.e you pick one or the other.
+
+Lets start with *smartNIC mode* because this is what most folks are familiar with. In this case your TC CRUD goes via the host CPU. Your s/w exception path also runs on the host CPU. Summary: The ARM cores and everything else on the NIC side is not accessible directly to you. Infact depending on the NIC model there may even not be ARM cores on that NIC!
+
+In the *XPU mode* the control plane resides in the cpu complex on the NIC (ARM cores in the diagram). So the CRUD commands to manipulate the P4 objects (tables or actions) are issued from the ARM cores. It also means your s/w exception path or pipeline is on the ARM cores.
+
+In both modes, as illustrated above, the driver will have full visibility to the ASIC as a PCI device.
+
+So why is *XPU mode* prefered? There are several reasons:
+
+- Zero Trust of the host. You may not want to allow the host to be mucking around with the s/w datapath especially in shared environments. It is also argued that if your host got hacked having control of the datapath, perhaps patching it with some new tables etc is easier to do within the NIC where an OOB network exists, accessible only to the owners.
+
+- Saving CPU cycles on the host. Instead of spending the host CPU on the "network infra" processing, you free those cycles to allow more to be available to the applications by offloading the "network infra" from the host stack.
+
+- Power savings. The NICs consume a lot less power than host CPUs to achieve the same "network infra" goals.
+
+There is an operational con, however: On a host you now have two distros to manage - one on the host and another on the NIC.
+
+
+##### Port Model
+
+As illustrated above, we assume a *switchdev* model.
+
+All ports, physical or virtual, fall under two classifications per P4 PNA specs: 1) VFs and SFs representators (or queue-pairs etc) fall under P4 *host ports* or as commonly refered to as *vports* 2) physical ports(example P0 and P1 in the diagram) fall under P4 *network ports* categorization.
+
+Note, creation of VFs in either modes **happens at the host**; SFs on the other hand could be created on the xPU side. This is an ongoing discussion in many other jurisdictions including amongst the vendors discussing the P4TC offloads in the bi-weekly meetings.
+
+In *SmartNIC* mode the physical (network) and vports are all exposed on the host side. The control plane is going to need access to the PF on the host for control.
+In *XPU* mode the vports are exposed to both the host as well as cpu complex side but the physical (network) ports(where the cables are connected) are only visible on the cpu complex. The control plane is going to need access to the PF on the ARM cpu complex for control.
+
+##### Operational Model
+
+Regardless of the two modes, the vports, PF and network ports illustrated above could reside on any of the permutations of:
+
+ - Baremetal on *host* or *cpu complex*
+ - On the *host* or *cpu complex*, residing in VMs
+ - On the *host* or *cpu complex* , residing in containers
+ - On the *host* or *cpu complex*, residing in containers which are in VMs
+
+Control plane requires visibility into the PCI device aka PF driver. So PF (and as a consequence control) can be moved to any of the combinations of host/VM/container/cpucomplex as described above.
 
 ## For More Details...
 
